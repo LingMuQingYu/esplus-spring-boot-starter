@@ -240,7 +240,7 @@ public class Es {
     }
 
     private static Query setPageable(Number pageNum, Number pageSize, EsWrapper wrapper) {
-        return wrapper.build().setPageable(PageRequest.of(pageNum.intValue(), pageSize.intValue()));
+        return wrapper.build().setPageable(PageRequest.of(pageNum.intValue() - 1, pageSize.intValue()));
     }
 
     private static ElasticsearchConverter getElasticsearchConverter() {
