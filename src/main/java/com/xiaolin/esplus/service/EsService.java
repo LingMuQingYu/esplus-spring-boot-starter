@@ -1,51 +1,35 @@
 package com.xiaolin.esplus.service;
 
 import com.xiaolin.esplus.base.QueryRequest;
-import com.xiaolin.esplus.constant.ConditionConst;
+import com.xiaolin.esplus.utils.Es;
 import com.xiaolin.esplus.wrapper.EsWrapper;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
-import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.SearchScrollHits;
-import org.springframework.data.elasticsearch.core.convert.ElasticsearchConverter;
-import org.springframework.data.elasticsearch.core.document.Document;
-import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
-import org.springframework.data.elasticsearch.core.query.Query;
-import org.springframework.data.elasticsearch.core.query.UpdateQuery;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 
 public class EsService<T> {
     protected Logger log = LoggerFactory.getLogger(getClass());
-    private final long scrollTimeInMillis = 300000;
-    @Autowired
-    protected ElasticsearchTemplate esTemplate;
-    protected ElasticsearchConverter elasticsearchConverter;
     protected final Class<T> entityClass = getTypeClass();
 
     /**
      * 保存数据
      */
     public void save(T entity) {
-        esTemplate.save(entity);
+        Es.save(entity);
     }
 
     /**
      * 批量保存
      */
     public void saveBatch(Collection<T> entities) {
-        esTemplate.save(entities);
+        Es.save(entities);
     }
 
     /**
@@ -54,14 +38,14 @@ public class EsService<T> {
      * @param entity 实体
      */
     public void updateById(T entity) {
-        esTemplate.update(entity);
+        Es.updateById(entity);
     }
 
     /**
      * 更新数据
      */
     public void updateBatchById(Collection<T> entities) {
-        entities.forEach(this::updateById);
+        Es.updateBatchById(entities);
     }
 
     /**
@@ -70,17 +54,7 @@ public class EsService<T> {
      * @param wrapper 条件包装器
      */
     public void update(EsWrapper wrapper) {
-        Document document;
-        if (Objects.nonNull(wrapper.getEntity())) {
-            document = this.getElasticsearchConverter().mapObject(wrapper.getEntity());
-            esTemplate.update(UpdateQuery.builder(wrapper.build()).withDocument(document).build());
-        } else if (!wrapper.getUpdateMap().isEmpty()) {
-            document = this.getElasticsearchConverter().mapObject(wrapper.getUpdateMap());
-            IndexCoordinates indexCoordinatesFor = esTemplate.getIndexCoordinatesFor(this.entityClass);
-            esTemplate.update(UpdateQuery.builder(wrapper.build()).withDocument(document).build(), indexCoordinatesFor);
-        } else {
-            throw new RuntimeException("Update content or entity cannot be empty！");
-        }
+        Es.update(wrapper, this.entityClass);
     }
 
     /**
@@ -89,33 +63,28 @@ public class EsService<T> {
      * @param wrapper 条件包装器
      */
     public void update(T entity, EsWrapper wrapper) {
-        esTemplate.update(
-                UpdateQuery.builder(wrapper.build())
-                        .withDocument(this.getElasticsearchConverter().mapObject(entity))
-                        .build()
-        );
-
+        Es.update(entity, wrapper);
     }
 
     /**
      * 根据ID删除
      */
     public void removeById(Serializable id) {
-        esTemplate.delete(String.valueOf(id), this.entityClass);
+        Es.removeById(String.valueOf(id), this.entityClass);
     }
 
     /**
      * 根据ID集合删除
      */
     public void removeByIds(Collection<? extends Serializable> ids) {
-        esTemplate.delete(esTemplate.idsQuery(ids.stream().map(String::valueOf).toList()), this.entityClass);
+        Es.removeByIds(ids, this.entityClass);
     }
 
     /**
      * 根据ID删除
      */
     public void removeById(T entity) {
-        esTemplate.delete(entity);
+        Es.removeById(entity);
     }
 
     /**
@@ -124,41 +93,35 @@ public class EsService<T> {
      * @param wrapper 条件包装器
      */
     public void remove(EsWrapper wrapper) {
-        esTemplate.delete(wrapper.build(), this.entityClass);
+        Es.remove(wrapper, this.entityClass);
     }
 
     /**
      * 根据ID获取单条数据
      */
     public T get(Serializable id) {
-        return esTemplate.get(String.valueOf(id), this.entityClass);
+        return Es.get(id, this.entityClass);
     }
 
     /**
      * 条件获取单条数据
      */
     public T get(EsWrapper wrapper) {
-        SearchHit<T> searchHit = esTemplate.searchOne(wrapper.build(), this.entityClass);
-        if (Objects.isNull(searchHit)) {
-            return null;
-        }
-        return searchHit.getContent();
+        return Es.get(wrapper, this.entityClass);
     }
 
     /**
      * 根据ID集合获取多条数据
      */
     public List<T> list(Collection<? extends Serializable> ids) {
-        SearchHits<T> hits = esTemplate.search(esTemplate.idsQuery(ids.stream().map(String::valueOf).toList()), this.entityClass);
-        return hits.stream().map(SearchHit::getContent).toList();
+        return Es.list(ids, this.entityClass);
     }
 
     /**
      * 根据条件获取多条数据
      */
     public List<T> list(EsWrapper wrapper) {
-        SearchHits<T> hits = esTemplate.search(wrapper.build(), this.entityClass);
-        return hits.stream().map(SearchHit::getContent).toList();
+        return Es.list(wrapper, this.entityClass);
     }
 
 
@@ -166,96 +129,63 @@ public class EsService<T> {
      * 根据条件分页获取多条数据（不返回总数）
      */
     public List<T> list(Number pageNum, Number pageSize, EsWrapper wrapper) {
-        return page(pageNum, pageSize, wrapper).getSearchHits().stream().map(SearchHit::getContent).toList();
+        return Es.list(pageNum, pageSize, wrapper, this.entityClass);
     }
 
     /**
      * 分页查询
      */
     public SearchHits<T> page(Number pageNum, Number pageSize) {
-        return page(pageNum, pageSize, EsWrapper.builder());
+        return Es.page(pageNum, pageSize, this.entityClass);
     }
 
     /**
      * 条件分页查询
      */
     public SearchHits<T> page(Number pageNum, Number pageSize, EsWrapper wrapper) {
-        return esTemplate.search(setPageable(pageNum, pageSize, wrapper), this.entityClass);
+        return Es.page(pageNum, pageSize, wrapper, this.entityClass);
     }
 
     /**
      * ES滚动分页查询
      */
     public SearchScrollHits<T> pageScrollStart(Number pageSize, EsWrapper wrapper) {
-        return pageScrollStart(pageSize, wrapper, scrollTimeInMillis);
+        return Es.pageScrollStart(pageSize, wrapper, this.entityClass);
     }
 
     /**
      * ES滚动分页查询
      */
     public SearchScrollHits<T> pageScrollStart(Number pageSize, EsWrapper wrapper, long scrollTimeInMillis) {
-        Query query = setPageable(1, pageSize, wrapper);
-        IndexCoordinates indexCoordinatesFor = esTemplate.getIndexCoordinatesFor(this.entityClass);
-        return esTemplate.searchScrollStart(scrollTimeInMillis, query, this.entityClass, indexCoordinatesFor);
+        return Es.pageScrollStart(pageSize, wrapper, this.entityClass, scrollTimeInMillis);
     }
 
     /**
      * ES滚动分页查询
      */
     public SearchScrollHits<T> pageScrollContinue(String scrollId) {
-        return pageScrollContinue(scrollId, scrollTimeInMillis);
+        return Es.pageScrollContinue(scrollId, this.entityClass);
     }
 
     /**
      * ES滚动分页查询
      */
     public SearchScrollHits<T> pageScrollContinue(String scrollId, long scrollTimeInMillis) {
-        IndexCoordinates indexCoordinatesFor = esTemplate.getIndexCoordinatesFor(this.entityClass);
-        return esTemplate.searchScrollContinue(scrollId, scrollTimeInMillis, this.entityClass, indexCoordinatesFor);
+        return Es.pageScrollContinue(scrollId, this.entityClass, scrollTimeInMillis);
     }
 
     /**
      * 清理ES滚动分页查询
      */
     public void pageScrollClear(String scrollId) {
-        esTemplate.searchScrollClear(scrollId);
+        Es.pageScrollClear(scrollId);
     }
 
     /**
      * 通用分页查询
      */
     public SearchHits<T> pageQuery(QueryRequest queryRequest) {
-        return page(queryRequest.getPage(), queryRequest.getLimit(), buildEsWrapper(queryRequest));
-    }
-
-    /**
-     * 通用分页查询构建通用查询构造器
-     */
-    public EsWrapper buildEsWrapper(QueryRequest queryRequest) {
-        EsWrapper wrapper = EsWrapper.builder();
-        if (queryRequest.getKeywordFields() != null && !StringUtils.isEmpty(queryRequest.getKeywordText())) {
-            wrapper.or(w -> Arrays.asList(queryRequest.getKeywordFields()).forEach(e -> w.mq(e, queryRequest.getKeywordText())));
-        }
-        queryRequest.getQueryParams().forEach(q -> {
-            if (ConditionConst.IN.equals(q.getOp()) || ConditionConst.NIN.equals(q.getOp())) {
-                wrapper.addCondition(q.getName(), q.getOp(), q.getValues());
-            } else {
-                wrapper.addCondition(q.getName(), q.getOp(), q.getValue1(), q.getValue2());
-            }
-        });
-        queryRequest.getSorts().forEach(e -> wrapper.orderBy(e.getName(), e.isAsc()));
-        return wrapper;
-    }
-
-    private Query setPageable(Number pageNum, Number pageSize, EsWrapper wrapper) {
-        return wrapper.build().setPageable(PageRequest.of(pageNum.intValue(), pageSize.intValue()));
-    }
-
-    private ElasticsearchConverter getElasticsearchConverter() {
-        if (this.elasticsearchConverter == null) {
-            this.elasticsearchConverter = this.esTemplate.getElasticsearchConverter();
-        }
-        return this.elasticsearchConverter;
+        return Es.pageQuery(queryRequest, this.entityClass);
     }
 
     @SuppressWarnings("unchecked")
