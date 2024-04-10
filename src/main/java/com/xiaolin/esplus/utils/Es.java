@@ -6,6 +6,7 @@ import com.xiaolin.esplus.wrapper.EsWrapper;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.core.ScriptType;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.SearchScrollHits;
@@ -16,10 +17,8 @@ import org.springframework.data.elasticsearch.core.query.Query;
 import org.springframework.data.elasticsearch.core.query.UpdateQuery;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Es {
     private static final long scrollTimeInMillis = 300000;
@@ -65,14 +64,18 @@ public class Es {
         Document document;
         if (Objects.nonNull(wrapper.getEntity())) {
             document = Es.getElasticsearchConverter().mapObject(wrapper.getEntity());
-            getEsTemplate().update(UpdateQuery.builder(wrapper.build()).withDocument(document).build());
         } else if (!wrapper.getUpdateMap().isEmpty()) {
             document = Es.getElasticsearchConverter().mapObject(wrapper.getUpdateMap());
-            IndexCoordinates indexCoordinatesFor = getEsTemplate().getIndexCoordinatesFor(clazz);
-            getEsTemplate().update(UpdateQuery.builder(wrapper.build()).withDocument(document).build(), indexCoordinatesFor);
         } else {
             throw new RuntimeException("Update content or entity cannot be empty！");
         }
+        IndexCoordinates indexCoordinatesFor = getEsTemplate().getIndexCoordinatesFor(clazz);
+        UpdateQuery build = UpdateQuery.builder(wrapper.build())
+                .withScript(document.keySet().stream().map(k -> "ctx._source.%s = params.%s".formatted(k, k)).collect(Collectors.joining(";")))
+                .withParams(document)
+                .withScriptType(ScriptType.INLINE)
+                .build();
+        getEsTemplate().updateByQuery(build, indexCoordinatesFor);
     }
 
     /**
@@ -218,6 +221,11 @@ public class Es {
      */
     public static <T> SearchHits<T> pageQuery(QueryRequest queryRequest, Class<T> clazz) {
         return page(queryRequest.getPage(), queryRequest.getLimit(), buildEsWrapper(queryRequest), clazz);
+    }
+
+    public static <T> List<Map<String, Object>> groupCountList(EsWrapper wrapper, Class<T> clazz) {
+        SearchHits<T> hits = esTemplate.search(wrapper.nativeBuild(), clazz);
+        return EsGroupUtil.groupCountList(hits, wrapper, clazz);
     }
 
     /**

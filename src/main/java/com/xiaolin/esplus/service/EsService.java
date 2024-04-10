@@ -5,6 +5,7 @@ import com.xiaolin.esplus.utils.Es;
 import com.xiaolin.esplus.wrapper.EsWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.SearchScrollHits;
 
@@ -13,6 +14,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public class EsService<T> {
     protected Logger log = LoggerFactory.getLogger(getClass());
@@ -186,6 +188,10 @@ public class EsService<T> {
      */
     public SearchHits<T> pageQuery(QueryRequest queryRequest) {
         return Es.pageQuery(queryRequest, this.entityClass);
+    }
+
+    public List<Map<String, Object>> groupCountList(EsWrapper wrapper) {
+        return Es.groupCountList(wrapper, this.entityClass);
     }
 
     @SuppressWarnings("unchecked")

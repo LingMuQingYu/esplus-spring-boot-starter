@@ -2,7 +2,6 @@ package com.xiaolin.esplus.base;
 
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.AggregationBuilders;
 import co.elastic.clients.util.NamedValue;
 import com.xiaolin.esplus.utils.LambdaUtil;
 
@@ -32,6 +31,12 @@ public class EsAggregation {
         return this;
     }
 
+    public <T> EsAggregation terms(EFunction<T, ?> column) {
+        this.fieldName = LambdaUtil.getFieldName(column);
+        this.name = this.fieldName;
+        return this;
+    }
+
     public EsAggregation subGroup(Consumer<EsAggregation> fun) {
         EsAggregation esAggregation = new EsAggregation();
         subAggregations.add(esAggregation);
@@ -57,19 +62,26 @@ public class EsAggregation {
     }
 
     public Aggregation getAggregation() {
-        // TODO 需要解决order问题，目前使用order会报错
-        Aggregation terms;
-//            if (this.sortOrderList.isEmpty()) {
-//                terms = AggregationBuilders.terms(t -> t.field(this.fieldName).size(this.size).order(this.sortOrderList));
-//            } else {
-        terms = AggregationBuilders.terms(t -> t.field(this.fieldName).size(this.size));
-//            }
-        subAggregations.forEach(e -> terms.aggregations().put(e.getName(), e.getAggregation()));
-        return terms;
+        return Aggregation.of(ag -> {
+            Aggregation.Builder.ContainerBuilder containerBuilder = ag.terms(t -> {
+                t.field(this.fieldName).size(this.size);
+                if (!this.sortOrderList.isEmpty()) {
+                    t.order(sortOrderList);
+                }
+                return t;
+            });
+            subAggregations.forEach(e -> containerBuilder.aggregations(e.getName(), e.getAggregation()));
+            return containerBuilder;
+        });
     }
 
     public EsAggregation order(String name, boolean isAsc) {
         sortOrderList.add(NamedValue.of(name, isAsc ? SortOrder.Asc : SortOrder.Desc));
+        return this;
+    }
+
+    public EsAggregation order(String name) {
+        sortOrderList.add(NamedValue.of(name, SortOrder.Asc));
         return this;
     }
 
