@@ -36,12 +36,24 @@ public class LambdaUtil {
             }
             name = name.substring(3);
         }
+        return getFirstUpperCaseString(name);
+    }
 
-        if (name.length() == 1 || name.length() > 1 && !Character.isUpperCase(name.charAt(1))) {
-            name = name.substring(0, 1).toLowerCase(Locale.ENGLISH) + name.substring(1);
+    /**
+     * 首字母变大写
+     * @param value
+     * @return
+     */
+    public static String getFirstUpperCaseString(String value){
+
+        if (value.length() == 1 || value.length() > 1 && !Character.isUpperCase(value.charAt(1))) {
+            char[] chars = value.toCharArray();
+            if (chars[0] >= 'a' && chars[0] <= 'z') {
+                chars[0] = (char) (chars[0] - 32);
+            }
+            return new String(chars);
         }
-
-        return name;
+        return null;
     }
 
 }
