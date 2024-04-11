@@ -82,12 +82,4 @@ public class ConditionConst {
      * 分词不匹配
      */
     public static final String NM = "notMq";
-    /**
-     * 嵌套匹配
-     */
-    public static final String NESTED_EQ = "nestedEq";
-    /**
-     * 嵌套不匹配
-     */
-    public static final String NESTED_IN = "nestedIn";
 }

@@ -36,12 +36,7 @@ public class LambdaUtil {
             }
             name = name.substring(3);
         }
-
-        if (name.length() == 1 || name.length() > 1 && !Character.isUpperCase(name.charAt(1))) {
-            name = name.substring(0, 1).toLowerCase(Locale.ENGLISH) + name.substring(1);
-        }
-
-        return name;
+        return EsToolsUtil.getFirstLowerCaseString(name);
     }
 
 }

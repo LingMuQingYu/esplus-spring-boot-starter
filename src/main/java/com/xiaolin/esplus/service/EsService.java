@@ -5,7 +5,6 @@ import com.xiaolin.esplus.utils.Es;
 import com.xiaolin.esplus.wrapper.EsWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.SearchScrollHits;
 

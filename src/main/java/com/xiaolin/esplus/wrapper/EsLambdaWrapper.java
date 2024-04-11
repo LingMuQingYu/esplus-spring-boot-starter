@@ -1,9 +1,9 @@
 package com.xiaolin.esplus.wrapper;
 
 import co.elastic.clients.elasticsearch._types.aggregations.AggregationBuilders;
-import com.xiaolin.esplus.constant.ConditionConst;
 import com.xiaolin.esplus.base.EFunction;
 import com.xiaolin.esplus.base.ESupplier;
+import com.xiaolin.esplus.constant.ConditionConst;
 import com.xiaolin.esplus.utils.LambdaUtil;
 
 import java.util.Arrays;
@@ -43,28 +43,28 @@ class EsLambdaWrapper extends EsBaseWrapper {
      * 分词匹配
      */
     public EsWrapper mq(ESupplier<?> column) {
-        return addCondition(column, MQ);
+        return addCondition(column, ConditionConst.MQ);
     }
 
     /**
      * 分词匹配
      */
     public <T> EsWrapper mq(EFunction<T, ?> column, Object value) {
-        return addCondition(column, MQ, value);
+        return addCondition(column, ConditionConst.MQ, value);
     }
 
     /**
      * 分词不匹配
      */
     public EsWrapper notMq(ESupplier<?> column) {
-        return addCondition(column, NM);
+        return addCondition(column, ConditionConst.NM);
     }
 
     /**
      * 分词不匹配
      */
     public <T> EsWrapper notMq(EFunction<T, ?> column, Object value) {
-        return addCondition(column, NM, value);
+        return addCondition(column, ConditionConst.NM, value);
     }
 
     /**
