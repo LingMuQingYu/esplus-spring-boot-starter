@@ -17,5 +17,4 @@ public class SpringUtil {
     public static <T> T getBean(Class<T> beanClass) {
         return context.getBean(beanClass);
     }
-
 }
