@@ -3,16 +3,19 @@ package com.xiaolin.esplus.wrapper;
 
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
 import co.elastic.clients.elasticsearch._types.aggregations.AggregationBuilders;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
+import com.xiaolin.esplus.base.EFunction;
 import com.xiaolin.esplus.base.EsAggregation;
 import com.xiaolin.esplus.base.SortParam;
 import com.xiaolin.esplus.constant.ConditionConst;
+import com.xiaolin.esplus.utils.EsQueryUtil;
+import com.xiaolin.esplus.utils.LambdaUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
-import org.springframework.data.elasticsearch.core.query.Criteria;
-import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
-import org.springframework.data.elasticsearch.core.query.CriteriaQueryBuilder;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -20,15 +23,15 @@ import java.util.function.Consumer;
 class EsBaseWrapper {
     public final String AND = "AND";
     public final String OR = "OR";
-    public final String MQ = "mq";
-    public final String NM = "notMq";
+    public static final String MQ = "mq";
+    public static final String NM = "notMq";
     public static final String NESTED_EQ = "nestedEq";
     public static final String NESTED_IN = "nestedIn";
 
     /**
      * 当前层级条件集
      */
-    protected final List<Criteria> criteriaList = new ArrayList<>();
+    protected final List<Query> withQueryList = new ArrayList<>();
 
     protected final Map<String, Aggregation> aggregations = new LinkedHashMap<>();
 
@@ -37,6 +40,10 @@ class EsBaseWrapper {
     protected final List<String> selectFields = new ArrayList<>();
 
     protected final List<SortParam> sorts = new ArrayList<>();
+
+    protected PageRequest pageable;
+
+    protected String nestedPath;
 
     protected Object updateEntity;
 
@@ -60,7 +67,7 @@ class EsBaseWrapper {
     public EsWrapper or(Consumer<EsWrapper> consumer) {
         EsWrapper esWrapper = builder().or();
         consumer.accept(esWrapper);
-        criteriaList.add(esWrapper.getCriteria());
+        withQueryList.add(esWrapper.getQuery());
         return (EsWrapper) this;
     }
 
@@ -70,7 +77,25 @@ class EsBaseWrapper {
     public EsWrapper and(Consumer<EsWrapper> consumer) {
         EsWrapper esWrapper = builder();
         consumer.accept(esWrapper);
-        criteriaList.add(esWrapper.getCriteria());
+        withQueryList.add(esWrapper.getQuery());
+        return (EsWrapper) this;
+    }
+
+    /**
+     * 内嵌套关联查询
+     */
+    public <T> EsWrapper nested(EFunction<T, ?> column, Consumer<EsWrapper> fun) {
+        return nested(LambdaUtil.getFieldName(column), fun);
+    }
+
+    /**
+     * 内嵌套关联查询
+     */
+    public EsWrapper nested(String path, Consumer<EsWrapper> fun) {
+        EsWrapper builder = builder();
+        builder.nestedPath = path;
+        fun.accept(builder);
+        withQueryList.add(QueryBuilders.nested(n -> n.query(builder.getQuery()).path(path)));
         return (EsWrapper) this;
     }
 
@@ -234,96 +259,22 @@ class EsBaseWrapper {
      * 添加条件
      */
     public EsWrapper addCondition(String fieldName, String keyword, Object... values) {
-        Criteria where = Criteria.where(fieldName);
-        criteriaList.add(where);
-        return addCondition(where, keyword, values);
+        return addCondition(fieldName, keyword, null, values);
     }
 
     /**
      * 添加条件
      */
-    public EsWrapper addCondition(Criteria where, String keyword, Object... values) {
-        if (!ConditionConst.NU.equals(keyword)
-                && !ConditionConst.NN.equals(keyword)
-                && (values == null || values.length == 0)) {
-            return (EsWrapper) this;
+    public EsWrapper addCondition(String fieldName, String keyword, Float boost, Object... values) {
+        Query.Builder queryBuilder = new Query.Builder();
+        if (StringUtils.isNotEmpty(nestedPath)) {
+            fieldName = nestedPath + "." + fieldName;
         }
-
-        Object value = values.length > 0 ? values[0] : null;
-        switch (keyword) {
-            case ConditionConst.EQ:
-                where.is(String.valueOf(value));
-                break;
-            case ConditionConst.NE:
-                where.not().is(String.valueOf(value));
-                break;
-            case ConditionConst.LK:
-                where.contains(String.valueOf(value));
-                break;
-            case ConditionConst.LLK:
-                where.endsWith(String.valueOf(value));
-                break;
-            case ConditionConst.RLK:
-                where.startsWith(String.valueOf(value));
-                break;
-            case ConditionConst.NC:
-                where.not().contains(String.valueOf(value));
-                break;
-            case ConditionConst.NEL:
-                where.not().endsWith(String.valueOf(value));
-                break;
-            case ConditionConst.NBL:
-                where.not().startsWith(String.valueOf(value));
-                break;
-            case ConditionConst.IN:
-                if (value instanceof Iterable<?>) {
-                    where.in((Iterable<?>) value);
-                }
-                break;
-            case ConditionConst.NIN:
-                if (value instanceof Iterable<?>) {
-                    where.not().in((Iterable<?>) value);
-                }
-                break;
-            case ConditionConst.GT:
-                where.greaterThan(getLongValue(value));
-                break;
-            case ConditionConst.GE:
-                where.greaterThanEqual(getLongValue(value));
-                break;
-            case ConditionConst.LT:
-                where.lessThan(getLongValue(value));
-                break;
-            case ConditionConst.LE:
-                where.lessThanEqual(getLongValue(value));
-                break;
-            case ConditionConst.BT:
-                if (values.length == 2) {
-                    where.between(getLongValue(values[0]), getLongValue(values[1]));
-                }
-                break;
-            case ConditionConst.NBT:
-                if (values.length == 2) {
-                    where.not().between(getLongValue(values[0]), getLongValue(values[1]));
-                }
-                break;
-            case ConditionConst.NU:
-                where.not().exists();
-                break;
-            case ConditionConst.NN:
-                where.exists();
-                break;
-            case MQ:
-                where.matches(value);
-                break;
-            case NM:
-                where.not().matches(value);
-                break;
-            default:
-                break;
-        }
+        EsQueryUtil.addCondition(queryBuilder, fieldName, keyword, boost, values);
+        withQueryList.add(queryBuilder.build());
         return (EsWrapper) this;
     }
+
 
     /**
      * 排序
@@ -390,35 +341,21 @@ class EsBaseWrapper {
         return (EsWrapper) this;
     }
 
-    public Object getLongValue(Object value) {
-        if (value instanceof Date date) {
-            return date.getTime();
+    public Query getQuery() {
+        if (OR.equals(condition)) {
+            return QueryBuilders.bool().should(this.withQueryList).build()._toQuery();
         }
-        return value;
+        return QueryBuilders.bool().must(this.withQueryList).build()._toQuery();
     }
 
-    /**
-     * 获取当前层级Spring Data条件构造器
-     */
-    public Criteria getCriteria() {
-        Criteria criteria = Criteria.and();
-        for (Criteria subCriteria : criteriaList) {
-            if (criteria == null) {
-                criteria = subCriteria;
-            } else {
-                criteria.and(subCriteria);
-            }
-        }
-        if (!criteriaList.isEmpty() && OR.equals(condition)) {
-            return criteria.or(criteria);
-        }
-        return criteria;
+    public NativeQuery nativeBuild() {
+        return build();
     }
 
     /**
      * 构建Spring Data条件构造器
      */
-    public CriteriaQuery build() {
+    public NativeQuery build() {
         return build(queryBuilder -> {
         });
     }
@@ -441,28 +378,14 @@ class EsBaseWrapper {
         return (EsWrapper) this;
     }
 
-    public NativeQuery nativeBuild() {
+    public EsWrapper pageable(Number pageNumber, Number pageSize) {
+        this.pageable = PageRequest.of(pageNumber.intValue() - 1, pageSize.intValue());
+        return (EsWrapper) this;
+    }
+
+    public NativeQuery build(Consumer<NativeQueryBuilder> consumer) {
         NativeQueryBuilder nativeQueryBuilder = new NativeQueryBuilder();
-        aggregations.forEach(nativeQueryBuilder::withAggregation);
-        NativeQuery nativeQuery = nativeQueryBuilder.build();
-        nativeQuery.setSpringDataQuery(this.build());
-        // 只做一条数据的查询
-        nativeQuery.setPageable(PageRequest.of(0, 1));
-        return nativeQuery;
-    }
-
-    public Map<String, Aggregation> getAggregations() {
-        return aggregations;
-    }
-
-    /**
-     * 构建Spring Data条件构造器
-     */
-    public CriteriaQuery build(Consumer<CriteriaQueryBuilder> consumer) {
-        Criteria criteria = getCriteria();
-        CriteriaQueryBuilder queryBuilder = CriteriaQuery.builder(criteria);
-        consumer.accept(queryBuilder);
-        CriteriaQuery criteriaQuery = queryBuilder.build();
+        nativeQueryBuilder.withQuery(this.getQuery());
         sorts.forEach(sortParam -> {
             Sort sort = Sort.by(sortParam.getName());
             if (sortParam.isAsc()) {
@@ -470,10 +393,27 @@ class EsBaseWrapper {
             } else {
                 sort.descending();
             }
-            criteriaQuery.addSort(sort);
+            nativeQueryBuilder.withSort(sort);
         });
-        criteriaQuery.addFields(selectFields.toArray(new String[0]));
-        return criteriaQuery;
+        if (!selectFields.isEmpty()) {
+            nativeQueryBuilder.withFields(selectFields);
+        }
+        if (!aggregations.isEmpty()) {
+            aggregations.forEach(nativeQueryBuilder::withAggregation);
+            // 只做一条数据的查询
+            nativeQueryBuilder.withPageable(PageRequest.of(0, 1));
+        }
+        if (Objects.nonNull(pageable)) {
+            nativeQueryBuilder.withPageable(pageable);
+        }
+        if (Objects.nonNull(consumer)) {
+            consumer.accept(nativeQueryBuilder);
+        }
+        return nativeQueryBuilder.build();
+    }
+
+    public Map<String, Aggregation> getAggregations() {
+        return aggregations;
     }
 
 }

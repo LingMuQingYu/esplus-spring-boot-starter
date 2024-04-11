@@ -1,10 +1,10 @@
 package com.xiaolin.esplus.wrapper;
 
 import co.elastic.clients.elasticsearch._types.aggregations.AggregationBuilders;
-import com.xiaolin.esplus.base.EFunction;
-import com.xiaolin.esplus.base.ESupplier;
-import com.xiaolin.esplus.constant.ConditionConst;
-import com.xiaolin.esplus.utils.LambdaUtil;
+import com.byd.ecm.common.core.base.ConditionConst;
+import com.byd.ecm.common.es.base.EFunction;
+import com.byd.ecm.common.es.base.ESupplier;
+import com.byd.ecm.common.es.utils.LambdaUtil;
 
 import java.util.Arrays;
 
