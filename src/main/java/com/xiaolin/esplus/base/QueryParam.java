@@ -2,12 +2,6 @@ package com.xiaolin.esplus.base;
 
 import java.util.List;
 
-/**
- * @Description:
- * @author: jianfeng.zheng
- * @since: 2023/3/20 18:41
- * @history: 1.2023/3/20 created by jianfeng.zheng
- */
 public class QueryParam {
     private String name;
     private String value1;

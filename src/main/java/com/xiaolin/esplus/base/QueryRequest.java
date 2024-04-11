@@ -6,12 +6,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * @Description:
- * @author: jianfeng.zheng
- * @since: 2024/2/26 17:36
- * @history: 1.2024/2/26 created by jianfeng.zheng
- */
 public class QueryRequest {
     private List<QueryParam> queryParams;
     private String keywordText;

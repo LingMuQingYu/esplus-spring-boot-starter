@@ -6,5 +6,4 @@ public interface EsQueryCondition {
 
     Object execute(Query.Builder queryBuilder, String fieldName, String keyword, Float boost, Object... values);
 
-
 }

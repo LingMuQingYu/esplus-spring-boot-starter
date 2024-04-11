@@ -1,12 +1,7 @@
 package com.xiaolin.esplus.core.es;
 
-import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import com.xiaolin.esplus.utils.EscapeUtil;
-
-import static com.xiaolin.esplus.utils.EsQueryUtil.orQueryString;
-import static com.xiaolin.esplus.utils.EsQueryUtil.toFieldValueList;
-import static org.springframework.data.elasticsearch.client.elc.Queries.queryStringQuery;
+import com.xiaolin.esplus.utils.EsToolsUtil;
 
 public class InEqQueryConditionStrategy implements EsQueryCondition {
     private static volatile EsQueryCondition singleton;
@@ -35,13 +30,13 @@ public class InEqQueryConditionStrategy implements EsQueryCondition {
                                 .terms(tb -> tb //
                                         .field(fieldName)
                                         .terms(tsb -> tsb //
-                                                .value(toFieldValueList(iterable)))))
+                                                .value(EsToolsUtil.toFieldValueList(iterable)))))
                         .boost(boost));
             } else {
                 queryBuilder
                         .queryString(qsb -> qsb
                                 .fields(fieldName)
-                                .query(orQueryString(iterable))
+                                .query(EsToolsUtil.orQueryString(iterable))
                                 .boost(boost));
             }
         }

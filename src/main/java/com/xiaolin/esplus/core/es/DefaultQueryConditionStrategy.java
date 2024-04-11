@@ -1,10 +1,6 @@
 package com.xiaolin.esplus.core.es;
 
-import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import com.xiaolin.esplus.utils.EscapeUtil;
-
-import static org.springframework.data.elasticsearch.client.elc.Queries.queryStringQuery;
 
 public class DefaultQueryConditionStrategy implements EsQueryCondition {
     private static volatile EsQueryCondition singleton;

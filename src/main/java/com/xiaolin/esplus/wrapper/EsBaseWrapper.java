@@ -9,7 +9,8 @@ import com.xiaolin.esplus.base.EFunction;
 import com.xiaolin.esplus.base.EsAggregation;
 import com.xiaolin.esplus.base.SortParam;
 import com.xiaolin.esplus.constant.ConditionConst;
-import com.xiaolin.esplus.utils.EsQueryUtil;
+import com.xiaolin.esplus.core.EsQueryConditionFactory;
+import com.xiaolin.esplus.core.es.EsQueryCondition;
 import com.xiaolin.esplus.utils.LambdaUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.PageRequest;
@@ -23,10 +24,6 @@ import java.util.function.Consumer;
 class EsBaseWrapper {
     public final String AND = "AND";
     public final String OR = "OR";
-    public static final String MQ = "mq";
-    public static final String NM = "notMq";
-    public static final String NESTED_EQ = "nestedEq";
-    public static final String NESTED_IN = "nestedIn";
 
     /**
      * 当前层级条件集
@@ -119,14 +116,14 @@ class EsBaseWrapper {
      * 分词匹配
      */
     public EsWrapper mq(String fieldName, Object value) {
-        return addCondition(fieldName, MQ, value);
+        return addCondition(fieldName, ConditionConst.MQ, value);
     }
 
     /**
      * 分词不匹配
      */
     public EsWrapper notMq(String fieldName, Object value) {
-        return addCondition(fieldName, NM, value);
+        return addCondition(fieldName, ConditionConst.NM, value);
     }
 
     /**
@@ -270,11 +267,20 @@ class EsBaseWrapper {
         if (StringUtils.isNotEmpty(nestedPath)) {
             fieldName = nestedPath + "." + fieldName;
         }
-        EsQueryUtil.addCondition(queryBuilder, fieldName, keyword, boost, values);
+        addCondition(queryBuilder, fieldName, keyword, boost, values);
         withQueryList.add(queryBuilder.build());
         return (EsWrapper) this;
     }
 
+    public void addCondition(Query.Builder queryBuilder, String fieldName, String keyword, Float boost, Object... values) {
+        if (!ConditionConst.NU.equals(keyword)
+                && !ConditionConst.NN.equals(keyword)
+                && (values == null || values.length == 0)) {
+            return;
+        }
+        EsQueryCondition beanQueryCondition = EsQueryConditionFactory.getBeanQueryCondition(keyword);
+        beanQueryCondition.execute(queryBuilder,fieldName,keyword,boost,values);
+    }
 
     /**
      * 排序
